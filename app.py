@@ -476,7 +476,7 @@ def safe_float(x):
 
 def investment_opportunity(row):
 
-    investment_score = safe_float(row["investment_score"])
+    investment_score = safe_float(row["enhanced_investment_score"])
 
     appreciation_rank = safe_float(row["appreciation_rank"])
 
@@ -588,7 +588,7 @@ def loser_by(a, b, metric):
 
 def investment_reason(winner, loser):
 
-    score_gap = safe_float(winner["investment_score"]) - safe_float(loser["investment_score"])
+    score_gap = safe_float(winner["enhanced_investment_score"]) - safe_float(loser["enhanced_investment_score"])
 
     app_gap = safe_float(winner["appreciation_5yr_pct"]) - safe_float(loser["appreciation_5yr_pct"])
 
@@ -628,7 +628,7 @@ def investment_reason(winner, loser):
 
 def family_reason(winner, loser):
 
-    score_gap = safe_float(winner["family_stability_score"]) - safe_float(loser["family_stability_score"])
+    score_gap = safe_float(winner["enhanced_family_score"]) - safe_float(loser["enhanced_family_score"])
 
     price_gap = safe_float(winner["current_home_value"]) - safe_float(loser["current_home_value"])
 
@@ -899,36 +899,25 @@ with st.spinner("Loading housing intelligence layer from Athena..."):
     scores = run_query("""
 
         SELECT
-
-            CAST(zip_code AS VARCHAR) AS zip_code,
-
-            state,
-
-            state_name,
-
+            zip_code,
             city,
-
-            county_name,
-
+            state,
             current_home_value,
-
             yoy_growth_pct,
-
             appreciation_5yr_pct,
-
+            state_name,
+            county_name,
             investment_score,
+            enhanced_investment_score,
 
             family_stability_score,
+            family_safety_score,
+            school_score,
+            enhanced_family_score,
 
-            appreciation_rank,
+            enhanced_use_case
 
-            growth_rank,
-
-            price_rank,
-
-            better_use_case
-
-        FROM pbi_zip_scores
+        FROM pbi_zip_scores_enriched
 
         WHERE current_home_value IS NOT NULL
 
@@ -1048,13 +1037,13 @@ render(f"""
 
 # =========================================================
 
-inv_winner = winner_by(zip_a_data, zip_b_data, "investment_score")
+inv_winner = winner_by(zip_a_data, zip_b_data, "enhanced_investment_score")
 
-inv_loser = loser_by(zip_a_data, zip_b_data, "investment_score")
+inv_loser = loser_by(zip_a_data, zip_b_data, "enhanced_investment_score")
 
-fam_winner = winner_by(zip_a_data, zip_b_data, "family_stability_score")
+fam_winner = winner_by(zip_a_data, zip_b_data, "enhanced_family_score")
 
-fam_loser = loser_by(zip_a_data, zip_b_data, "family_stability_score")
+fam_loser = loser_by(zip_a_data, zip_b_data, "enhanced_family_score")
 
 
 
@@ -1108,7 +1097,7 @@ with ia:
 
         [
 
-            ("Investment Score", num(zip_a_data["investment_score"])),
+            ("Investment Score", num(zip_a_data["enhanced_investment_score"])),
 
             ("5Y Appreciation", pct(zip_a_data["appreciation_5yr_pct"])),
 
@@ -1132,7 +1121,7 @@ with ib:
 
         [
 
-            ("Investment Score", num(zip_b_data["investment_score"])),
+            ("Investment Score", num(zip_b_data["enhanced_investment_score"])),
 
             ("5Y Appreciation", pct(zip_b_data["appreciation_5yr_pct"])),
 
@@ -1222,7 +1211,7 @@ with fa:
 
         [
 
-            ("Family Score", num(zip_a_data["family_stability_score"])),
+            ("Family Score", num(zip_a_data["enhanced_family_score"])),
 
             ("Home Value", money(zip_a_data["current_home_value"])),
 
@@ -1246,7 +1235,7 @@ with fb:
 
         [
 
-            ("Family Score", num(zip_b_data["family_stability_score"])),
+            ("Family Score", num(zip_b_data["enhanced_family_score"])),
 
             ("Home Value", money(zip_b_data["current_home_value"])),
 
@@ -1274,7 +1263,7 @@ with chart_col:
 
         [
 
-            safe_float(zip_a_data["family_stability_score"]),
+            safe_float(zip_a_data["enhanced_family_score"]),
 
             safe_float(zip_a_data["current_home_value"]) / 1000,
 
@@ -1286,7 +1275,7 @@ with chart_col:
 
         [
 
-            safe_float(zip_b_data["family_stability_score"]),
+            safe_float(zip_b_data["enhanced_family_score"]),
 
             safe_float(zip_b_data["current_home_value"]) / 1000,
 
@@ -1472,11 +1461,11 @@ comparison = pd.DataFrame(
 
             pct(zip_a_data["appreciation_5yr_pct"]),
 
-            num(zip_a_data["investment_score"]),
+            num(zip_a_data["enhanced_investment_score"]),
 
-            num(zip_a_data["family_stability_score"]),
+            num(zip_a_data["enhanced_family_score"]),
 
-            zip_a_data["better_use_case"],
+            zip_a_data["enhanced_use_case"],
 
         ],
 
@@ -1496,7 +1485,7 @@ comparison = pd.DataFrame(
 
             num(zip_b_data["family_stability_score"]),
 
-            zip_b_data["better_use_case"],
+            zip_b_data["enhanced_use_case"],
 
         ],
 
@@ -1528,7 +1517,7 @@ with ta:
 
     st.subheader("Top 10 Investment ZIPs")
 
-    top_inv = state_df.sort_values("investment_score", ascending=False).head(10)[
+    top_inv = state_df.sort_values("enhanced_investment_score", ascending=False).head(10)[
 
         ["zip_code", "city", "county_name", "current_home_value", "investment_score", "appreciation_5yr_pct"]
 
@@ -1546,7 +1535,7 @@ with tb:
 
     st.subheader("Top 10 Family Stability ZIPs")
 
-    top_fam = state_df.sort_values("family_stability_score", ascending=False).head(10)[
+    top_fam = state_df.sort_values("enhanced_family_score", ascending=False).head(10)[
 
         ["zip_code", "city", "county_name", "current_home_value", "family_stability_score", "yoy_growth_pct"]
 
